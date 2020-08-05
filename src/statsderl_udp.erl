@@ -18,12 +18,12 @@
 -ifdef(UDP_HEADER).
 
 header(IP, Port) ->
-    [?INET_AF_INET, ?INT16(Port) | ip4_to_bytes(IP)].
+    [?INET_AF_INET, ?INT16(Port), ip4_to_bytes(IP), anci_len()].
 
 -else.
 
 header(IP, Port) ->
-    [?INT16(Port) | ip4_to_bytes(IP)].
+    [?INT16(Port), ip4_to_bytes(IP)].
 
 -endif.
 
@@ -43,3 +43,15 @@ send(Socket, Header, Data) ->
 %% private
 ip4_to_bytes({A, B, C, D}) ->
     [A band 16#ff, B band 16#ff, C band 16#ff, D band 16#ff].
+
+%% private
+%% In Erlang 21.3.8.4 support for ancillary data in UDP was introduced.
+%% Internal interface was changed, so we need to add length of anci data
+%% (0 as uint32) to make driver happy
+%% https://bugs.erlang.org/browse/ERL-982
+anci_len() ->
+    Exports = gen_udp:module_info(exports),
+    case lists:member({send, 5}, Exports) of
+        true  -> [0, 0, 0, 0];
+        false -> []
+    end.
